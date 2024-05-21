@@ -27,8 +27,50 @@ const userschema = new Schema(
             type: String,
             required: [true, 'Password is required']
         },
+        cart: [
+            {
+                productId: { 
+                              type: Schema.Types.ObjectId,
+                              ref: 'Product' 
+                        },
+                quantity: { 
+                             type: Number,
+                              default: 1 
+                        }
+            }
+        ],
+        orders: [
+            {
+                orderId: {
+                            type: Schema.Types.ObjectId,
+                            ref: 'Order' 
+                        },
+                status: {   
+                            type: String,
+                            default: 'pending' 
+                        }
+            }
+        ],
+        contact:{
+            type:Number,
+            required:true
+        },
+        address:{
+            type: String,
+            required: [true, 'address is required']
+        },
+        isadmin:{
+            type:Boolean,
+            default:false
+        },
         refreshtoken: {
             type: String
+        },
+        passwordresettoken: {
+            type: String
+        },
+        passwordresetexpires: {
+            type: Date
         }
     },
     {
@@ -68,6 +110,14 @@ userschema.methods.generateRefreshToken = function () {
         expiresIn:process.env.REFRESH_TOKEN_EXPIRY
     }
     )
+}
+
+userschema.methods.createPasswordResetToken = function(){
+    let resettoken = Math.floor(Math.random()*1000000).toString()
+    resettoken = resettoken.padStart(6, '0')
+    this.passwordresettoken = resettoken
+    this.passwordresetexpires = Date.now() + 10*60*1000
+    return resettoken
 }
 
 export const User = mongoose.model("User", userschema)

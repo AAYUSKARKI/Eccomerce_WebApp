@@ -3,6 +3,7 @@ import { Apierror } from "../utils/apierror.js";
 import { User } from "../models/user.model.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { Apiresponse } from "../utils/apiresponse.js";
+import { sendEmail } from "../utils/sendemail.js";
 import jwt from "jsonwebtoken";
 
 const generateAccessAndRefreshToken = async (userId) => {
@@ -26,29 +27,23 @@ const generateAccessAndRefreshToken = async (userId) => {
 
 
 const registerUser = asynchandler(async (req, res) => {
-    //get user details from frontend
-    //validation - not empty
-    //check if user already exist :username,email
-    //check for image,avatar
-    //upload on cloudinary
-    //create user object - create entry in db
-    //remove password and refresh tokenfield from response
-    //check for user creation 
-    //return res
-    const { email, username, password } = req.body
-    console.log("email:", email);
+    const { username, email, password, contact, address, isAdmin } = req.body;
 
-    if ([ email, username, password].some((field) => field?.trim() === "")) {
+    if ([ email, username, password, contact, address, isAdmin].some((field) => field?.trim() === "")) {
         throw new Apierror(400, "All fields are required")
     }
 
     const existeduser = await User.findOne({
         $or: [
-            { username }, { email }
+            { username }
+            , { email }
         ]
     })
 
-    if (existeduser) { throw new Apierror(409, "User with Email or Username already exist") }
+    if (existeduser)
+         { 
+            throw new Apierror(409, "User with Email or Username already exist") 
+        }
 
     const avatarlocalpath = req.files?.avatar[0]?.path
     console.log("Avatar file received:", req.files?.avatar);
@@ -63,10 +58,17 @@ const registerUser = asynchandler(async (req, res) => {
         avatar: avatar.url,
         email,
         password,
-        username: username.toLowerCase()
+        username: username,
+        contact,
+        address,
+        isAdmin
     })
-    const createdUser = await User.findById(user._id).select(
-        "-password -refreshtoken")
+
+    if (!user) {
+        throw new Apierror(500, "something went wrong while registering a user")
+    }
+
+    const createdUser = await User.findById(user._id).select("-password -refreshtoken")
 
     if (!createdUser) {
         throw new Apierror(500, "something went wrong while registering a user")
@@ -78,22 +80,9 @@ const registerUser = asynchandler(async (req, res) => {
 })
 
 const loginuser = asynchandler(async (req, res) => {
-    // Log the req.body object to inspect the data being sent from the client
-    // console.log('Request Body:', req.body);
-    // console.log('Request Object:', req);
-
-
-    //req body bata data lera aaune
-    //username or email
-    //find the user
-    //password check 
-    //access and refreshtoken
-    //send cookies
-    //succesfully login
+    
     const { email, username, password } = req.body
-    // console.log("username ", username);
-    // console.log("email ", email);
-    // console.log('Request headers:', req.headers);
+    
     if (!username && !email) {
         throw new Apierror(400, "username or email is required")
 
@@ -200,7 +189,43 @@ const refreshaccesstoken = asynchandler(async (req, res) => {
 
 
 
+const forgotpassword = asynchandler(async (req, res) => {
+    const { email } = req.body
 
+    if (!email) {
+        throw new Apierror(400, "email is required")
+    }
+
+    const user = await User.findOne({ email })
+    if (!user) {
+        throw new Apierror(404, "user not found")
+    }
+
+    const resettoken = user.createPasswordResetToken()
+    await user.save({ validateBeforeSave: false })
+
+    const reseturl = `http://localhost:5173/passwordreset?resettoken=${resettoken}`
+
+    const text = `your password reset token is :- \n\n ${reseturl} \n\n if you have not requested this email then please ignore it`
+
+    try {
+        await sendEmail({
+            email: user.email,
+            subject: "password recovery",
+            text
+        })
+    } catch (error) {
+        user.passwordresettoken = undefined
+        user.passwordresetexpires = undefined
+        await user.save({ validateBeforeSave: false })
+
+        throw new Apierror(500, "something went wrong")
+
+    }
+
+    return res.status(200).json(new Apiresponse(200, {}, "password reset token sent to your email"))
+
+})
 
 
 const changecurrentpassword = asynchandler(async (req, res) => {

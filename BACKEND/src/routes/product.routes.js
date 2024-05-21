@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { createMessage, getMessages } from "../controllers/chat.controller.js";
+import { createMessage, getMessages } from "../controllers/product.controller.js";
 import { upload } from "../middleware/multer.middleware.js"
 const router = Router()
 

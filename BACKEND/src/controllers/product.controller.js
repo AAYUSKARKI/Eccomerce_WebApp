@@ -1,7 +1,6 @@
 import { asynchandler } from "../utils/asynchandler.js";
 import { Apierror } from "../utils/apierror.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
-import {Message} from '../models/chat.model.js';
 import { io } from "../index.js";
 import { Apiresponse } from "../utils/apiresponse.js";
 
